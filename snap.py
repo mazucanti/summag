@@ -10,15 +10,21 @@ class SNAP():
         self.nodes = pd.read_csv('data/nodes.csv')
         self.edges = pd.read_csv('data/edges.csv')
         self.node_array = self.nodes['id_lattes']
-        self.neighbor_node_bmp = pd.DataFrame(index=self.node_array)
 
-    def generate_a_compatible(self, *atributes):
+    def generate_a_compatible_nodes(self, *atributes):
         attrs = list(atributes)
         a_compatible_nodes = self.nodes.sort_values(attrs)
-        self.groups = self.nodes.groupby(attrs, axis=1)
-        print(self.groups.all())
+        self.supernodes = self.nodes.groupby(attrs).groups
+        for key in self.supernodes:
+            self.supernodes[key] = set(self.supernodes[key])
+        print(self.supernodes)
+        self.bitmap = pd.DataFrame(
+            index=self.nodes['id_lattes'].to_list(), columns=self.supernodes.keys())
         return a_compatible_nodes
+
+    def generate_a_compatible_edges(self, *atributes):
+        pass
 
 
 s = SNAP()
-s.generate_a_compatible('major_area')
+s.generate_a_compatible_nodes('major_area')
