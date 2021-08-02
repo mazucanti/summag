@@ -53,6 +53,8 @@ class SNAP():
         new_supernodes = new_supernodes.groupby(cols).groups
         return new_supernodes
 
+    def generate_graph(self):
+        pass
 
 if __name__ == '__main__':
 
