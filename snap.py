@@ -1,5 +1,6 @@
 import pandas as pd
-import logging
+import networkx as nx
+from itertools import cycle
 
 
 class SNAP():
@@ -20,7 +21,10 @@ class SNAP():
         self.bitmap[supernode] = 0
         neighbours = self.edges['target_id_lattes'].isin(nodes)
         neighbours = self.edges[neighbours]['source_id_lattes']
-        self.bitmap.loc[neighbours, supernode] = 1
+        try:
+            self.bitmap.loc[neighbours, supernode] = 1
+        except KeyError:
+            pass
 
     def generate_ar_compatible_nodes(self, *attributes):
         self.generate_a_compatible_nodes(*attributes)
@@ -53,10 +57,20 @@ class SNAP():
         new_supernodes = new_supernodes.groupby(cols).groups
         return new_supernodes
 
-    def generate_graph(self):
-        pass
+    def generate_graph(self, file_name):
+        G = nx.DiGraph()
+        for supernode, nodes in self.supernodes.items():
+            neighbours = list(self.supernodes.keys())
+            nodes_adjency = self.bitmap.loc[nodes, :]
+            weights = nodes_adjency.sum()[neighbours].to_list()
+            for i, weight in enumerate(weights):
+                if weight != 0:
+                    G.add_edge(supernode, neighbours[i], weight=weight)
+        nx.write_graphml(G, file_name)
+
 
 if __name__ == '__main__':
 
-    s = SNAP('nodes.csv', 'edges.csv')
+    s = SNAP('data/nodes.csv', 'data/edges.csv')
     s.generate_ar_compatible_nodes('major_area')
+    s.generate_graph('ar_comp.graphml')
