@@ -5,6 +5,7 @@ from itertools import cycle
 
 class SNAP():
     def __init__(self, nodes_path, edges_path):
+        print('Loading data...')
         self.nodes = pd.read_csv(nodes_path, index_col=0)
         self.edges = pd.read_csv(edges_path)
 
@@ -14,23 +15,28 @@ class SNAP():
         self.bitmap = pd.DataFrame(0,
                                    index=self.nodes.index.to_list(),
                                    columns=self.supernodes.keys())
+        print('Initializing bitmap...')
         for supernode, nodes in self.supernodes.items():
             self.update_bitmap(supernode, *nodes)
 
     def update_bitmap(self, supernode, *nodes):
-        self.bitmap[supernode] = 0
         neighbours = self.edges['target_id_lattes'].isin(nodes)
         neighbours = self.edges[neighbours]['source_id_lattes']
-        try:
+        cols = set(self.bitmap.columns.to_list())
+        if supernode in cols:
             self.bitmap.loc[neighbours, supernode] = 1
-        except KeyError:
-            pass
+        else:
+            new_nodes = pd.Series(1,index=neighbours, name=supernode)
+            self.bitmap = pd.concat([self.bitmap, new_nodes]).fillna(0)
+        
 
     def generate_ar_compatible_nodes(self, *attributes):
         self.generate_a_compatible_nodes(*attributes)
+        print('Generating AR compatible nodes...')
         while True:
             size = len(self.supernodes)
             supernodes = self.supernodes.copy()
+            print('Splitting supernodes...')
             for supernode, nodes in supernodes.items():
                 participation_array = self.bitmap.loc[nodes, :].sum()
                 if participation_array.isin([0, len(nodes)]).all():
@@ -45,6 +51,7 @@ class SNAP():
         self.supernodes[supernode] = new_nodes
         self.update_bitmap(supernode, *new_nodes)
         i = 0
+        print('Inserting new supernodes in the bitmap...')
         for new_supernode, new_nodes in new_supernodes.items():
             supernode_name = f'{supernode}_{i}'
             i += 1
@@ -59,9 +66,10 @@ class SNAP():
 
     def generate_graph(self, file_name):
         G = nx.DiGraph()
+        neighbours = list(self.supernodes.keys())
+        print('Generating graph...')
         for supernode, nodes in self.supernodes.items():
-            neighbours = list(self.supernodes.keys())
-            nodes_adjency = self.bitmap.loc[nodes, :]
+            nodes_adjency = self.bitmap.loc[nodes, :].copy()
             weights = nodes_adjency.sum()[neighbours].to_list()
             for i, weight in enumerate(weights):
                 if weight != 0:
@@ -72,5 +80,5 @@ class SNAP():
 if __name__ == '__main__':
 
     s = SNAP('data/nodes.csv', 'data/edges.csv')
-    s.generate_ar_compatible_nodes('major_area')
-    s.generate_graph('ar_comp.graphml')
+    s.generate_ar_compatible_nodes('area')
+    s.generate_graph('ar_comp2.graphml')
