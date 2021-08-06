@@ -21,23 +21,23 @@ class SNAP():
 
     def update_bitmap(self, supernode, *nodes):
         neighbours = self.edges['target_id_lattes'].isin(nodes)
-        neighbours = self.edges[neighbours]['source_id_lattes']
+        neighbours = self.edges[neighbours]['source_id_lattes'].drop_duplicates()
         cols = set(self.bitmap.columns.to_list())
         if supernode in cols:
             self.bitmap.loc[neighbours, supernode] = 1
         else:
             new_nodes = pd.Series(1,index=neighbours, name=supernode)
-            self.bitmap = pd.concat([self.bitmap, new_nodes]).fillna(0)
+            self.bitmap = pd.concat([self.bitmap, new_nodes], axis=1).fillna(0)
         
 
     def generate_ar_compatible_nodes(self, *attributes):
         self.generate_a_compatible_nodes(*attributes)
-        print('Generating AR compatible nodes...')
         while True:
+            print('Generating AR compatible nodes...')
             size = len(self.supernodes)
             supernodes = self.supernodes.copy()
-            print('Splitting supernodes...')
             for supernode, nodes in supernodes.items():
+                print('Splitting supernodes...')
                 participation_array = self.bitmap.loc[nodes, :].sum()
                 if participation_array.isin([0, len(nodes)]).all():
                     continue
@@ -80,5 +80,5 @@ class SNAP():
 if __name__ == '__main__':
 
     s = SNAP('data/nodes.csv', 'data/edges.csv')
-    s.generate_ar_compatible_nodes('area')
-    s.generate_graph('ar_comp2.graphml')
+    s.generate_ar_compatible_nodes('major_area')
+    s.generate_graph('ar_comp_ma.graphml')
