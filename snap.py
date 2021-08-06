@@ -4,13 +4,15 @@ from itertools import cycle
 
 
 class SNAP():
+    __slots__ = ['nodes','edges','bitmap','supernodes']
     def __init__(self, nodes_path, edges_path):
         print('Loading data...')
         self.nodes = pd.read_csv(nodes_path, index_col=0)
-        self.edges = pd.read_csv(edges_path)
+        self.edges = pd.read_csv(edges_path, usecols=['source_id_lattes', 'target_id_lattes'])
 
     def generate_a_compatible_nodes(self, *attributes):
         attrs = list(attributes)
+        self.nodes = self.nodes[attrs]
         self.supernodes = self.nodes.groupby(attrs).groups
         self.bitmap = pd.DataFrame(0,
                                    index=self.nodes.index.to_list(),
@@ -37,10 +39,11 @@ class SNAP():
             size = len(self.supernodes)
             supernodes = self.supernodes.copy()
             for supernode, nodes in supernodes.items():
-                print('Splitting supernodes...')
+                print(f'Splitting {supernode}...')
                 participation_array = self.bitmap.loc[nodes, :].sum()
                 if participation_array.isin([0, len(nodes)]).all():
                     continue
+                print('Generating new groups...')
                 new_supernodes = self.generate_new_supernodes(nodes)
                 self.update_supernodes(new_supernodes, supernode)
             if size == len(self.supernodes):
@@ -54,6 +57,7 @@ class SNAP():
         print('Inserting new supernodes in the bitmap...')
         for new_supernode, new_nodes in new_supernodes.items():
             supernode_name = f'{supernode}_{i}'
+            print(f'Inserting {supernode_name}')
             i += 1
             self.supernodes[supernode_name] = new_nodes
             self.update_bitmap(supernode_name, *new_nodes)
