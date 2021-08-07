@@ -19,7 +19,7 @@ class SNAP():
         self.bitmap = pd.DataFrame(0,
                                    index=self.nodes.index.to_list(),
                                    columns=self.supernodes.keys())
-        self.bitmap = dd.from_pandas(self.bitmap, 200)
+        self.bitmap = dd.from_pandas(self.bitmap, 100)
         print('Initializing bitmap...')
         for supernode, nodes in self.supernodes.items():
             self.update_bitmap(supernode, *nodes)
