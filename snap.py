@@ -124,6 +124,6 @@ class SNAP():
 
 if __name__ == '__main__':
 
-    s = SNAP('data/nodes.csv', 'raw/public_db_edges.csv')
+    s = SNAP('raw/public_db_vertices.csv', 'raw/public_db_edges.csv')
     s.generate_ar_compatible_nodes('major_area')
     s.generate_graph('ar_comp_ma.graphml')
