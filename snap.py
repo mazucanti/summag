@@ -2,6 +2,8 @@ import pandas as pd
 import networkx as nx
 from itertools import cycle
 
+import dask.dataframe as dd
+
 
 class SNAP():
     __slots__ = ['nodes','edges','bitmap','supernodes']
@@ -17,6 +19,7 @@ class SNAP():
         self.bitmap = pd.DataFrame(0,
                                    index=self.nodes.index.to_list(),
                                    columns=self.supernodes.keys())
+        self.bitmap = dd.from_pandas(self.bitmap, 200)
         print('Initializing bitmap...')
         for supernode, nodes in self.supernodes.items():
             self.update_bitmap(supernode, *nodes)
@@ -24,14 +27,15 @@ class SNAP():
     def update_bitmap(self, supernode, *nodes):
         neighbours = self.edges['target_id_lattes'].isin(nodes)
         neighbours = self.edges[neighbours]['source_id_lattes'].drop_duplicates()
-        cols = set(self.bitmap.columns.to_list())
+        cols = set(self.bitmap.compute().columns.to_list())
         if supernode in cols:
-            self.bitmap.loc[neighbours, supernode] = 1
+            bitmap = self.bitmap[supernode].compute()
+            bitmap[neighbours] = 1
+            self.bitmap[supernode] = bitmap
         else:
-            new_nodes = pd.Series(1,index=neighbours, name=supernode)
-            self.bitmap = pd.concat([self.bitmap, new_nodes], axis=1).fillna(0)
-        
-
+            s = pd.Series(1, index=neighbours, name=supernode)
+            self.bitmap[supernode] = s
+    
     def generate_ar_compatible_nodes(self, *attributes):
         self.generate_a_compatible_nodes(*attributes)
         while True:
@@ -40,7 +44,7 @@ class SNAP():
             supernodes = self.supernodes.copy()
             for supernode, nodes in supernodes.items():
                 print(f'Splitting {supernode}...')
-                participation_array = self.bitmap.loc[nodes, :].sum()
+                participation_array = self.bitmap.compute().loc[nodes, :].sum()
                 if participation_array.isin([0, len(nodes)]).all():
                     continue
                 print('Generating new groups...')
@@ -64,7 +68,7 @@ class SNAP():
 
     def generate_new_supernodes(self, nodes):
         cols = self.bitmap.columns.to_list()
-        new_supernodes = self.bitmap.loc[nodes, :]
+        new_supernodes = self.bitmap.compute().loc[nodes, :]
         new_supernodes = new_supernodes.groupby(cols).groups
         return new_supernodes
 
@@ -72,6 +76,7 @@ class SNAP():
         G = nx.DiGraph()
         neighbours = list(self.supernodes.keys())
         print('Generating graph...')
+        self.bitmap = self.bitmap.compute()
         for supernode, nodes in self.supernodes.items():
             nodes_adjency = self.bitmap.loc[nodes, :].copy()
             weights = nodes_adjency.sum()[neighbours].to_list()
