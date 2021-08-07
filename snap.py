@@ -9,10 +9,11 @@ import datetime as dt
 
 
 class SNAP():
-    __slots__ = ['sample_size', 'nodes', 'edges', 'bitmap', 'supernodes', 'logger']
+    __slots__ = ['logger', 'nodes', 'edges',
+                 'sample_size', 'supernodes', 'bitmap']
 
     def __init__(self, nodes_path, edges_path, sample_size=None):
-
+        self._setup_logger()
         self.logger.info('Loading data...')
         self.nodes = pd.read_csv(nodes_path, index_col=0)
         self.edges = pd.read_csv(edges_path, usecols=[
@@ -37,13 +38,12 @@ class SNAP():
         self.logger.addHandler(sh)
         self.logger.addHandler(fh)
 
-
-
     def generate_sample(self, sample_size):
         edges = self.edges.sample(sample_size)
         source_nodes = edges['source_id_lattes']
         target_nodes = edges['target_id_lattes']
-        nodes = pd.concat([self.nodes.loc[source_nodes,:], self.nodes.loc[target_nodes,:]])
+        nodes = pd.concat([self.nodes.loc[source_nodes, :],
+                          self.nodes.loc[target_nodes, :]])
         nodes.drop_duplicates(inplace=True)
         return edges, nodes
 
@@ -124,6 +124,7 @@ class SNAP():
 
 if __name__ == '__main__':
 
-    s = SNAP('raw/public_db_vertices.csv', 'raw/public_db_edges.csv')
+    s = SNAP('raw/public_db_vertices.csv',
+             'raw/public_db_edges.csv', sample_size=100000)
     s.generate_ar_compatible_nodes('major_area')
     s.generate_graph('data/ar_comp_ma.graphml')
