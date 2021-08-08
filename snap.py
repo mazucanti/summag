@@ -77,9 +77,7 @@ class SNAP():
             bits = bits.replace(neighbours, 1)
         else:
             bits = pd.Series(data=neighbours, name=supernode)
-        self._debug(self.bitmap.compute())
         self.bitmap = self.bitmap.assign(**{supernode: bits}).fillna(0)
-        self._debug(self.bitmap.compute())
 
     def generate_ar_compatible_nodes(self, *attributes):
         self.generate_a_compatible_nodes(*attributes)
