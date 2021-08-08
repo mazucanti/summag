@@ -43,11 +43,9 @@ class SNAP():
         source_nodes = edges['source_id_lattes'].rename('id_lattes')
         target_nodes = edges['target_id_lattes'].rename('id_lattes')
         all_nodes = pd.concat([source_nodes, target_nodes]).drop_duplicates()
-        self.logger.debug(f'\n{all_nodes}')
         nodes = self.nodes.merge(
             all_nodes, left_index=True, right_on='id_lattes')
-        self.logger.debug(f'\n{nodes}')
-        self.logger.debug(f'\n{edges}')
+        nodes.set_index('id_lattes', inplace=True)
         return nodes, edges
 
     def generate_a_compatible_nodes(self, *attributes):
