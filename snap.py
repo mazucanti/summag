@@ -9,8 +9,7 @@ import datetime as dt
 
 
 class SNAP():
-    __slots__ = ['logger', 'nodes', 'edges',
-                 'sample_size', 'supernodes', 'bitmap']
+    __slots__ = ['logger', 'nodes', 'edges', 'supernodes', 'bitmap']
 
     def __init__(self, nodes_path, edges_path, sample_size=None):
         self._setup_logger()
@@ -25,13 +24,14 @@ class SNAP():
     def _setup_logger(self):
         log_dir = Path('logs/')
         log_name = f'exec_{dt.datetime.today()}.log'
-        if not log_dir.is_dir():
-            log_dir.mkdir(exist_ok=True, parents=True)
+        log_dir.mkdir(exist_ok=True, parents=True)
         log_path = log_dir / log_name
 
-        fmt = logging.Formatter('(%(funcName)s)-%(levelname)s: %(message)s')
-        sh = logging.StreamHandler().setFormatter(fmt)
-        fh = logging.FileHandler(log_path).setFormatter(fmt)
+        fmt = logging.Formatter('(%(funcName)s) %(levelname)s: %(message)s')
+        sh = logging.StreamHandler()
+        sh.setFormatter(fmt)
+        fh = logging.FileHandler(log_path)
+        fh.setFormatter(fmt)
 
         self.logger = logging.getLogger('SNAP')
         self.logger.setLevel(logging.DEBUG)
@@ -40,12 +40,15 @@ class SNAP():
 
     def generate_sample(self, sample_size):
         edges = self.edges.sample(sample_size)
-        source_nodes = edges['source_id_lattes']
-        target_nodes = edges['target_id_lattes']
-        nodes = pd.concat([self.nodes.loc[source_nodes, :],
-                          self.nodes.loc[target_nodes, :]])
-        nodes.drop_duplicates(inplace=True)
-        return edges, nodes
+        source_nodes = edges['source_id_lattes'].rename('id_lattes')
+        target_nodes = edges['target_id_lattes'].rename('id_lattes')
+        all_nodes = pd.concat([source_nodes, target_nodes]).drop_duplicates()
+        self.logger.debug(f'\n{all_nodes}')
+        nodes = self.nodes.merge(
+            all_nodes, left_index=True, right_on='id_lattes')
+        self.logger.debug(f'\n{nodes}')
+        self.logger.debug(f'\n{edges}')
+        return nodes, edges
 
     def generate_a_compatible_nodes(self, *attributes):
         attrs = list(attributes)
@@ -61,8 +64,7 @@ class SNAP():
 
     def _update_bitmap(self, supernode, *nodes):
         neighbours = self.edges['target_id_lattes'].isin(nodes)
-        neighbours = self.edges[neighbours]['source_id_lattes'].drop_duplicates(
-        )
+        neighbours = self.edges[neighbours]['source_id_lattes'].drop_duplicates()
         cols = set(self.bitmap.compute().columns.to_list())
         if supernode in cols:
             bitmap = self.bitmap.compute()[supernode]
@@ -98,9 +100,9 @@ class SNAP():
         for new_supernode, new_nodes in new_supernodes.items():
             supernode_name = f'{supernode}_{i}'
             self.logger.info(f'Inserting {supernode_name}')
-            i += 1
             self.supernodes[supernode_name] = new_nodes
             self._update_bitmap(supernode_name, *new_nodes)
+            i += 1
 
     def _generate_new_supernodes(self, nodes):
         cols = self.bitmap.columns.to_list()
