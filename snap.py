@@ -52,10 +52,10 @@ class SNAP():
         attrs = list(attributes)
         self.nodes = self.nodes[attrs]
         self.supernodes = self.nodes.groupby(attrs).groups
-        self.bitmap = pd.DataFrame(0,
-                                   index=self.nodes.index.to_list(),
-                                   columns=self.supernodes.keys())
-        self.bitmap = dd.from_pandas(self.bitmap, 100)
+        self.bitmap = pd.DataFrame(0, index=self.nodes.index.to_list(),
+                columns=self.supernodes.keys())
+        self.bitmap = dd.read_csv('bitmap.csv')
+        self.bitmap.set_index('Unnamed: 0')
         self.logger.info('Initializing bitmap...')
         for supernode, nodes in self.supernodes.items():
             self._update_bitmap(supernode, *nodes)
@@ -124,7 +124,6 @@ class SNAP():
 
 if __name__ == '__main__':
 
-    s = SNAP('raw/public_db_vertices.csv',
-             'raw/public_db_edges.csv', sample_size=100000)
+    s = SNAP('data/nodes.csv', 'data/edges.csv', sample_size=100000)
     s.generate_ar_compatible_nodes('major_area')
     s.generate_graph('data/ar_comp_ma.graphml')
