@@ -63,10 +63,7 @@ class SNAP():
     def _initialize_bitmap(self):
         self.bitmap = pd.DataFrame(0, index=self.nodes.index.to_list(),
                                    columns=self.supernodes.keys())
-        # self.bitmap.index.name = 'nodes'
-        self._debug(self.bitmap)
         self.bitmap.reset_index(inplace=True)
-        self._debug(self.bitmap)
         self.bitmap = dd.from_pandas(self.bitmap, 200)
 
     def _update_bitmap(self, supernode, *nodes):
@@ -81,6 +78,7 @@ class SNAP():
         else:
             bits = neighbours
         self.bitmap = self.bitmap.set_index('index').assign(**{supernode: bits}).fillna(0)
+        self.bitmap.reset_index()
 
     def generate_ar_compatible_nodes(self, *attributes):
         self.generate_a_compatible_nodes(*attributes)
