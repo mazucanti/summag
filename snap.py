@@ -70,13 +70,13 @@ class SNAP():
         neighbours = self.edges['target_id_lattes'].isin(nodes)
         neighbours = self.edges[neighbours][
             'source_id_lattes'].drop_duplicates()
-        neighbours = neighbours.to_list()
+        neighbours = pd.Series(1, index=neighbours, name='id_lattes')
         cols = set(self.bitmap.compute().columns.to_list())
         if supernode in cols:
             bits = self.bitmap.compute()[supernode]
-            bits = bits.replace(neighbours, 1)
+            bits.update(neighbours)
         else:
-            bits = pd.Series(data=neighbours, name=supernode)
+            bits = neighbours
         self.bitmap = self.bitmap.assign(**{supernode: bits}).fillna(0)
 
     def generate_ar_compatible_nodes(self, *attributes):
