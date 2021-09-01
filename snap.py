@@ -75,7 +75,7 @@ class SNAP():
             bits.update(neighbours)
         else:
             bits = neighbours
-        self.bitmap = self.bitmap.assign(**{supernode: bits}, inplace=True)
+        self.bitmap = self.bitmap.assign(**{supernode: bits}).fillna(0)
 
     def generate_ar_compatible_nodes(self, *attributes):
         self.generate_a_compatible_nodes(*attributes)
