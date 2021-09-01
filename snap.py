@@ -75,7 +75,7 @@ class SNAP():
             bits.update(neighbours)
         else:
             bits = neighbours
-        self.bitmap.assign(**{supernode: bits})
+        self.bitmap = self.bitmap.assign(**{supernode: bits}, inplace=True)
 
     def generate_ar_compatible_nodes(self, *attributes):
         self.generate_a_compatible_nodes(*attributes)
@@ -132,4 +132,5 @@ if __name__ == '__main__':
 
     s = SNAP('data/nodes.csv', 'data/edges.csv')
     s.generate_ar_compatible_nodes('major_area')
+    s.bitmap.to_csv('bitmap.csv')
     s.generate_graph('data/ar_comp_ma.graphml')
