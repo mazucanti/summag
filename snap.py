@@ -87,6 +87,7 @@ class SNAP():
                 self.logger.info(f'Splitting {supernode}...')
                 participation_array = self.bitmap.loc[nodes, :].sum()
                 if participation_array.isin([0, len(nodes)]).all():
+                    self.logger.info(f'No splitting necessary for {supernode}')
                     continue
                 self.logger.info('Generating new groups...')
                 new_supernodes = self._generate_new_supernodes(nodes)
