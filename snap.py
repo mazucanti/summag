@@ -63,24 +63,19 @@ class SNAP():
     def _initialize_bitmap(self):
         self.bitmap = pd.DataFrame(0, index=self.nodes.index.to_list(),
                                    columns=self.supernodes.keys())
-        self.bitmap.reset_index(inplace=True)
-        self.bitmap = dd.from_pandas(self.bitmap, 200)
 
     def _update_bitmap(self, supernode, *nodes):
         neighbours = self.edges['target_id_lattes'].isin(nodes)
         neighbours = self.edges[neighbours][
             'source_id_lattes'].drop_duplicates()
         neighbours = pd.Series(1, index=neighbours, name='id_lattes')
-        cols = set(self.bitmap.set_index('index').compute().columns.to_list())
+        cols = set(self.bitmap.columns.to_list())
         if supernode in cols:
-            bits = self.bitmap.set_index('index').compute()[supernode]
+            bits = self.bitmap[supernode]
             bits.update(neighbours)
         else:
             bits = neighbours
-        self._debug(self.bitmap)
-        self.bitmap = self.bitmap.set_index('index').assign(**{supernode: bits}).fillna(0)
-        self._debug(self.bitmap)
-        self.bitmap.reset_index()
+        self.bitmap.assign(**{supernode: bits})
 
     def generate_ar_compatible_nodes(self, *attributes):
         self.generate_a_compatible_nodes(*attributes)
@@ -90,7 +85,7 @@ class SNAP():
             supernodes = self.supernodes.copy()
             for supernode, nodes in supernodes.items():
                 self.logger.info(f'Splitting {supernode}...')
-                participation_array = self.bitmap.set_index('index').compute().loc[nodes, :].sum()
+                participation_array = self.bitmap.loc[nodes, :].sum()
                 if participation_array.isin([0, len(nodes)]).all():
                     continue
                 self.logger.info('Generating new groups...')
@@ -113,8 +108,8 @@ class SNAP():
             i += 1
 
     def _generate_new_supernodes(self, nodes):
-        cols = self.bitmap.set_index('index').columns.to_list()
-        new_supernodes = self.bitmap.set_index('index').compute().loc[nodes, :]
+        cols = self.bitmap.columns.to_list()
+        new_supernodes = self.bitmap.loc[nodes, :]
         new_supernodes = new_supernodes.groupby(cols).groups
         return new_supernodes
 
@@ -122,9 +117,9 @@ class SNAP():
         G = nx.DiGraph()
         neighbours = list(self.supernodes.keys())
         self.logger.info('Generating graph...')
-        self.bitmap = self.bitmap.set_index('index').compute()
+        self.bitmap = self.bitmap
         for supernode, nodes in self.supernodes.items():
-            nodes_adjency = self.bitmap.set_index('index').loc[nodes, :].copy()
+            nodes_adjency = self.bitmap.loc[nodes, :].copy()
             weights = nodes_adjency.sum()[neighbours].to_list()
             for i, weight in enumerate(weights):
                 if weight != 0:
@@ -134,6 +129,6 @@ class SNAP():
 
 if __name__ == '__main__':
 
-    s = SNAP('data/nodes.csv', 'data/edges.csv', sample_size=100000)
+    s = SNAP('data/nodes.csv', 'data/edges.csv')
     s.generate_ar_compatible_nodes('major_area')
     s.generate_graph('data/ar_comp_ma.graphml')
