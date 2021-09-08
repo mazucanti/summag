@@ -1,8 +1,5 @@
-from math import log
 import pandas as pd
 import networkx as nx
-from itertools import cycle
-import dask.dataframe as dd
 import logging
 from pathlib import Path
 import datetime as dt
@@ -30,7 +27,6 @@ class SNAP():
         sh.setFormatter(fmt)
         fh = logging.FileHandler(log_path)
         fh.setFormatter(fmt)
-
         self.logger = logging.getLogger('SNAP')
         self.logger.setLevel(logging.DEBUG)
         self.logger.addHandler(sh)
@@ -63,13 +59,12 @@ class SNAP():
     def _initialize_bitmap(self):
         self.bitmap = pd.DataFrame(0, index=self.nodes.index.to_list(),
                                    columns=self.supernodes.keys())
-
     def _update_bitmap(self, supernode, *nodes):
         neighbours = self.edges['target_id_lattes'].isin(nodes)
         neighbours = self.edges[neighbours][
             'source_id_lattes'].drop_duplicates()
         neighbours = pd.Series(1, index=neighbours, name='id_lattes')
-        cols = set(self.bitmap.columns.to_list())
+        cols = set(self.bitmap.columns)
         if supernode in cols:
             bits = self.bitmap[supernode]
             bits.update(neighbours)
@@ -130,7 +125,7 @@ class SNAP():
 
 if __name__ == '__main__':
 
-    s = SNAP('data/nodes.csv', 'data/edges.csv')
+    s = SNAP('data/nodes.csv', 'data/edges.csv', sample_size=100)
     s.generate_ar_compatible_nodes('major_area')
     s.bitmap.to_csv('bitmap.csv')
     s.generate_graph('data/ar_comp_ma.graphml')
