@@ -47,16 +47,23 @@ class SNAP():
         self.nodes = nodes
         self.edges = edges
 
-    def generate_a_compatible_nodes(self, *attributes):
-        attrs = list(attributes)
-        self.nodes = self.nodes[attrs]
-        self.supernodes = self.nodes.groupby(attrs).groups
+    def generate_a_compatible_nodes(self, node_attributes, edge_attributes):
+        self.logger.info('Getting edge information...')
+        self._transfer_attributes_to_target_node(edge_attributes)
+        self.nodes = self.nodes[node_attributes]
+        self.supernodes = self.nodes.groupby(node_attributes).groups
         self.logger.info('Initializing bitmap...')
         self._initialize_bitmap()
         for supernode, nodes in self.supernodes.items():
             self._update_bitmap(supernode, *nodes)
+    
+    def _transfer_attributes_to_target_node(self, edge_attributes):
+        tmp = self.edges[['target_id_lattes']+edge_attributes]
+        tmp = tmp.rename(columns={'target_id_lattes':'id_lattes'})
+        self.nodes = self.nodes.merge(tmp, on='id_lattes')
 
     def _initialize_bitmap(self):
+        self_node_index = self.nodes
         self.bitmap = pd.DataFrame(0, index=self.nodes.index.to_list(),
                                    columns=self.supernodes.keys())
     def _update_bitmap(self, supernode, *nodes):
@@ -108,6 +115,9 @@ class SNAP():
         new_supernodes = self.bitmap.loc[nodes, :]
         new_supernodes = new_supernodes.groupby(cols).groups
         return new_supernodes
+    
+    def generate_flow_graph(self):
+        pass
 
     def generate_graph(self, file_name):
         G = nx.DiGraph()
