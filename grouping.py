@@ -33,7 +33,7 @@ class Grouping():
     def _load_data(self, nodes_path, edges_path, sample_size, year):
         nodes = pd.read_csv(nodes_path)
         edges = pd.read_csv(edges_path)
-        if ~(year is None):
+        if not year is None:
             edges = edges[edges.conclusion_year == year]
         rename_map = {'target_id_lattes': 'id_lattes'}
         drop_list = ['area', 'major_area']
@@ -48,23 +48,35 @@ class Grouping():
         target_nodes = edges['target_id_lattes'].rename('id_lattes')
         all_nodes = pd.concat([source_nodes, target_nodes]).drop_duplicates()
         nodes = nodes.merge(all_nodes, on='id_lattes')
-        nodes.set_index('id_lattes', inplace=True)
         self.nodes = nodes
         self.edges = edges
 
-    def generate_flow_graph(self, attributes):
-        attributes = attributes.pop()
+    def generate_flow_graph(self, attribute):
+        filter = ['id_lattes', attribute]
         flow = self.edges.merge(
-            self.nodes[attributes], right_index=True, left_on='source_id_lattes')
-        flow = flow.merge(self.nodes[attributes],
-                          right_index=True, left_on='target_id_lattes')
-        flow.columns = [col.replace(f'{attributes}_x', 'source')
-                        for col in flow.columns]
-        flow.columns = [col.replace(f'{attributes}_y', 'target')
+            self.nodes[filter],
+            right_on='id_lattes',
+            left_on='source_id_lattes')
+        flow = flow.merge(
+            self.nodes[filter],
+            right_on='id_lattes',
+            left_on='target_id_lattes'
+        )
+        flow.columns = [
+            col.replace(f'{attribute}_x', 'source')
+            for col in flow.columns]
+        flow.columns = [col.replace(f'{attribute}_y', 'target')
                         for col in flow.columns]
         flow.to_csv('debug.csv')
-        flow = flow.groupby(['source', 'target']).size(
-        ).reset_index().rename(columns={0: 'weight'})
+        flow = flow.groupby(
+            ['source', 'target']
+        ).size().reset_index().rename(
+            columns={0: 'weight'}
+        )
+        self.flow = flow
         F = nx.from_pandas_edgelist(
-            flow, edge_attr='weight', create_using=nx.DiGraph)
+            flow,
+            edge_attr='weight',
+            create_using=nx.DiGraph
+        )
         return F
