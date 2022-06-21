@@ -8,10 +8,10 @@ import datetime as dt
 class SNAP():
     __slots__ = ['logger', 'nodes', 'edges', 'supernodes', 'bitmap']
 
-    def __init__(self, nodes_path, edges_path, sample_size=None):
+    def __init__(self, nodes_path, edges_path, sample_size=None, year=None):
         self._setup_logger()
         self.logger.info('Loading data...')
-        self._load_data(nodes_path, edges_path, sample_size)
+        self._load_data(nodes_path, edges_path, sample_size, year)
 
     def _debug(self, message):
         self.logger.debug(f'\n{message}')
@@ -32,10 +32,18 @@ class SNAP():
         self.logger.addHandler(sh)
         self.logger.addHandler(fh)
 
-    def _load_data(self, nodes_path, edges_path, sample_size):
+    def _load_data(self, nodes_path, edges_path, sample_size, year):
         nodes = pd.read_csv(nodes_path)
-        edges = pd.read_csv(edges_path, usecols=[
-            'source_id_lattes', 'target_id_lattes'])
+        edges = pd.read_csv(edges_path)
+        if ~(year is None):
+            edges = edges[edges.conclusion_year == year]
+            edges.to_csv('debug.csv')
+        rename_map = {'target_id_lattes': 'id_lattes'}
+        drop_list = ['area', 'major_area']
+        nodes = nodes.merge(edges[edges.academic_degree == 'doutorado'].rename(
+            columns=rename_map).drop(columns=drop_list), on='id_lattes')
+        nodes = nodes.drop(columns='source_id_lattes')
+        edges = edges[['source_id_lattes', 'target_id_lattes']]
         if not sample_size is None:
             self.logger.info(f'Generating a sample of size {sample_size}...')
             edges = edges.sample(sample_size)
@@ -47,25 +55,20 @@ class SNAP():
         self.nodes = nodes
         self.edges = edges
 
-    def generate_a_compatible_nodes(self, node_attributes, edge_attributes):
+    def generate_a_compatible_nodes(self, attributes):
         self.logger.info('Getting edge information...')
-        self._transfer_attributes_to_target_node(edge_attributes)
-        self.nodes = self.nodes[node_attributes]
-        self.supernodes = self.nodes.groupby(node_attributes).groups
+        self.nodes = self.nodes[attributes]
+        self.supernodes = self.nodes.groupby(attributes).groups
         self.logger.info('Initializing bitmap...')
         self._initialize_bitmap()
         for supernode, nodes in self.supernodes.items():
             self._update_bitmap(supernode, *nodes)
-    
-    def _transfer_attributes_to_target_node(self, edge_attributes):
-        tmp = self.edges[['target_id_lattes']+edge_attributes]
-        tmp = tmp.rename(columns={'target_id_lattes':'id_lattes'})
-        self.nodes = self.nodes.merge(tmp, on='id_lattes')
 
     def _initialize_bitmap(self):
         self_node_index = self.nodes
         self.bitmap = pd.DataFrame(0, index=self.nodes.index.to_list(),
                                    columns=self.supernodes.keys())
+
     def _update_bitmap(self, supernode, *nodes):
         neighbours = self.edges['target_id_lattes'].isin(nodes)
         neighbours = self.edges[neighbours][
@@ -79,8 +82,8 @@ class SNAP():
             bits = neighbours
         self.bitmap = self.bitmap.assign(**{supernode: bits}).fillna(0)
 
-    def generate_ar_compatible_nodes(self, *attributes):
-        self.generate_a_compatible_nodes(*attributes)
+    def generate_ar_compatible_nodes(self, attributes):
+        self.generate_a_compatible_nodes(attributes)
         while True:
             self.logger.info('Generating AR compatible nodes...')
             size = len(self.supernodes)
@@ -116,8 +119,23 @@ class SNAP():
         new_supernodes = new_supernodes.groupby(cols).groups
         return new_supernodes
     
-    def generate_flow_graph(self):
-        pass
+
+    def generate_flow_graph(self, attributes):
+        flow = self.edges.merge(
+            self.nodes[attributes], right_index=True, left_on='source_id_lattes')
+        flow = flow.merge(self.nodes[attributes],
+                          right_index=True, left_on='target_id_lattes')
+        flow.columns = [col.replace(f'{attributes}_x', 'source')
+                        for col in flow.columns]
+        flow.columns = [col.replace(f'{attributes}_y', 'target')
+                        for col in flow.columns]
+        flow = flow.groupby(['source', 'target']).size(
+        ).reset_index().rename(columns={0: 'weight'})
+        F = nx.from_pandas_edgelist(flow, edge_attr='weight', create_using=nx.DiGraph)
+        return F
+
+    def _rename_id(self, table, name):
+        return table.rename(columns={name: name.replace("id_lattes", "")})
 
     def generate_graph(self, file_name):
         G = nx.DiGraph()
@@ -134,8 +152,7 @@ class SNAP():
 
 
 if __name__ == '__main__':
-
-    s = SNAP('data/nodes.csv', 'data/edges.csv', sample_size=100)
-    s.generate_ar_compatible_nodes('major_area')
-    s.bitmap.to_csv('bitmap.csv')
-    s.generate_graph('data/ar_comp_ma.graphml')
+    for i in range(1999,2020):
+        s = SNAP('data/nodes.csv', 'data/edges.csv', year=i)
+        f = s.generate_flow_graph('institution')
+        nx.write_graphml(f, f'test/flow{i}.graphml')
